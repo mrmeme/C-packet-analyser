@@ -48,16 +48,16 @@ int main(int argc, char *argv[])
 		 fprintf(stderr, "Couldn't open device %s: %s\n", interface, errbuf);
 		 return(2);
 	 }
-	 printf("Waiting for packets\n");
+
+	 printf("Waiting for packets...\n");
 
 	//  if (pcap_compile(handle, &fp, filter_exp, 0, net) == -1) {
 	// 		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(handle));
 	// 		return(2);
 	// }
-	 pcap_loop(handle, 1, got_packet, NULL);
+	 pcap_loop(handle, 1, got_packet, &verbosite);
 	 // packet = pcap_next(handle, &header);
-	 // printf("Jacked a packet with length of [%d]\n", header.len);
-	 
+	 // printf("Jacked a packet with length of [%d]\n", header.len);	 
 
 	 pcap_close(handle);
 
@@ -94,27 +94,78 @@ void parseArgs(int argc, char *argv[], char** interface, char** fichier, char** 
 
 void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet){
 	printf("Packet recieved : [%d]\n", header->len);
-	const struct ether_header *ethernet;
+	struct ether_header *ethernet;
 	int size_ethernet = sizeof(struct ether_header);
 	ethernet = (struct ether_header*)(packet);
-	printf("Ethernet size : [%i]\n", size_ethernet);
+	int *verbosite = (int *) args;
+	printEthernet(ethernet, *verbosite );
+	if (ntohs (ethernet->ether_type) == ETHERTYPE_IP)
+    {
+        printf("Ethernet type hex:%x dec:%d is an IP packet\n",
+                ntohs(ethernet->ether_type),
+                ntohs(ethernet->ether_type));
+    }
+    struct ip *ip = (struct ip*)(packet + sizeof(struct ether_header));
+    
+    u_int hlen,off,version;
+    int i;
+
+    int len;
+    len     = ntohs(ip->ip_len);
+    // hlen    = IP_HL(ip); /* header length */
+    // version = IP_V(ip);/* ip version */
+
+    // /* check version */
+    // if(version != 4)
+    // {
+    //   fprintf(stdout,"Unknown version %d\n",version);
+    //   return NULL;
+    // }
+
+    // /* check header length */
+    // if(hlen < 5 )
+    // {
+    //     fprintf(stdout,"bad-hlen %d \n",hlen);
+    // }
+
+    /* see if we have as much packet as we should */
+    // if(length < len)
+    //     printf("\ntruncated IP - %d bytes missing\n",len - length);
+
+    /* Check to see if we have the first fragment */
+    off = ntohs(ip->ip_off);
+    //if((off &apm; 0x1fff) == 0 )/* aka no 1's in first 13 bits */
+   // {/* print SOURCE DESTINATION hlen version len offset */
+        fprintf(stdout,"IP: ");
+        fprintf(stdout,"%s ",
+                inet_ntoa(ip->ip_src));
+        fprintf(stdout,"%s %d %d %d %d\n",
+                inet_ntoa(ip->ip_dst),
+                /*hlen,version,*/len,off);
+  //  }
+	//printf("Ethernet size : %i\n", size_ethernet);	
+};
+
+void printEthernet(struct ether_header* ethernet, int verbosite)
+{
+	printf("Verbosite : %d\n", verbosite);
 	printf("Destination host address : ");
 	printf("%02x:%02x:%02x:%02x:%02x:%02x\n",
-    ntohs ((unsigned)ethernet->ether_dhost[0]),//ntohs sur la globalité
-    ntohs ((unsigned)ethernet->ether_dhost[1]),
-    ntohs ((unsigned)ethernet->ether_dhost[2]),
-    ntohs ((unsigned)ethernet->ether_dhost[3]),
-    ntohs ((unsigned)ethernet->ether_dhost[4]),
-    ntohs ((unsigned)ethernet->ether_dhost[5]));
+     ((unsigned)ethernet->ether_dhost[0]),//ntohs sur la globalité
+     ((unsigned)ethernet->ether_dhost[1]),
+     ((unsigned)ethernet->ether_dhost[2]),
+     ((unsigned)ethernet->ether_dhost[3]),
+     ((unsigned)ethernet->ether_dhost[4]),
+     ((unsigned)ethernet->ether_dhost[5]));
     printf("Source host address : ");
-	printf("%x:%x:%x:%x:%x:%x\n",
-    ntohs ((unsigned)ethernet->ether_shost[0]),
-    ntohs ((unsigned)ethernet->ether_shost[1]),
-    ntohs ((unsigned)ethernet->ether_shost[2]),
-    ntohs ((unsigned)ethernet->ether_shost[3]),
-    ntohs ((unsigned)ethernet->ether_shost[4]),
-    ntohs ((unsigned)ethernet->ether_shost[5]));
-    printf("%x\n",ntohs(ethernet->ether_shost));
+	printf("%02x:%02x:%02x:%02x:%02x:%02x\n",
+     ((unsigned)ethernet->ether_shost[0]),
+     ((unsigned)ethernet->ether_shost[1]),
+     ((unsigned)ethernet->ether_shost[2]),
+     ((unsigned)ethernet->ether_shost[3]),
+     ((unsigned)ethernet->ether_shost[4]),
+     ((unsigned)ethernet->ether_shost[5]));
+    //printf("%x\n",ntohs(ethernet->ether_shost));
 	//printf("Content : [%s]\n", ethernet->ether_shost);
 	printf("Ether_type : [%i]\n", ethernet->ether_type);
 };
