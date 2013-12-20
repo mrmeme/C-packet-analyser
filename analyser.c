@@ -1,15 +1,4 @@
-#include <stdio.h> 
-#include <stdlib.h> 
-#include <errno.h> 
-#include <string.h> 
-#include <netdb.h> 
-#include <sys/types.h> 
-#include <netinet/in.h> 
-#include <sys/socket.h> 
-#include <unistd.h>
-#include <pcap.h>
-#include <net/ethernet.h>
-#include <arpa/inet.h>
+#include "analyser.h"
 
 #define BUFFER_SIZE 1024
 
@@ -18,6 +7,91 @@
 // u_char ether_shost[ETHER_ADDR_LEN]; /* Source host address */
 // u_short ether_type; /* IP? ARP? RARP? etc */
 // }; 
+
+int main(int argc, char *argv[])
+{
+	// -i <interface> : interface pour l’analyse live
+	// -o <fichier> : fichier d’entrée pour l’analyse offline
+	// -f <filtre> : filtre BPF (optionnel)
+	// -v <1..3> : niveau de verbosité (1=très concis ; 2=synthétique ; 3=complet)
+	char *interface = NULL;
+	char *fichier = NULL;
+	char *filtre = NULL;
+	int verbosite = 0;
+	
+	parseArgs( argc, argv, &interface, &fichier, &filtre, &verbosite);	
+
+	char errbuf[ BUFFER_SIZE ];
+	pcap_t *handle;
+	struct pcap_pkthdr header;	/* The header that pcap gives us */
+	const u_char *packet;		/* The actual packet */
+	bpf_u_int32 mask;		/* Our netmask */
+	bpf_u_int32 net;		/* Our IP */
+
+	if (interface == NULL) {
+		interface = pcap_lookupdev(errbuf);
+			if (interface == NULL) {
+			fprintf(stderr, "Couldn't find default device: %s\n", errbuf);
+			return(2);
+		}
+	}
+	printf("Device: %s\n", interface);
+
+	if (pcap_lookupnet(interface, &net, &mask, errbuf) == -1) {
+			fprintf(stderr, "Couldn't get netmask for device %s: %s\n", interface, errbuf);
+			net = 0;
+			mask = 0;
+	}
+
+	 handle = pcap_open_live(interface, BUFSIZ, 1, 1000, errbuf);
+	 if (handle == NULL) {
+		 fprintf(stderr, "Couldn't open device %s: %s\n", interface, errbuf);
+		 return(2);
+	 }
+	 printf("Waiting for packets\n");
+
+	//  if (pcap_compile(handle, &fp, filter_exp, 0, net) == -1) {
+	// 		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(handle));
+	// 		return(2);
+	// }
+	 pcap_loop(handle, 1, got_packet, NULL);
+	 // packet = pcap_next(handle, &header);
+	 // printf("Jacked a packet with length of [%d]\n", header.len);
+	 
+
+	 pcap_close(handle);
+
+	return 0;
+}
+
+void parseArgs(int argc, char *argv[], char** interface, char** fichier, char** filtre, int* verbosite){
+	printf("Parsing Arguments\n");
+	int c;
+	while ((c = getopt (argc, argv, "i:o:f:v:")) != -1)
+         switch (c)
+           {
+           case 'i':
+             *interface = optarg;
+             printf("Interface = %s\n", optarg);
+             break;
+           case 'o':
+             *fichier = optarg;
+             printf("Fichier = %s\n", optarg);
+             break;
+           case 'f':
+             *filtre = optarg;
+             printf("Filtre = %s\n", optarg);
+             break;
+           case 'v':
+             *verbosite = atoi(optarg);
+             printf("Verbosite = %d\n", atoi(optarg));
+             break;           
+           default:
+             printf("Arguments missing\n");
+           }
+    printf("End of parsing\n");
+};
+
 void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet){
 	printf("Packet recieved : [%d]\n", header->len);
 	const struct ether_header *ethernet;
@@ -44,78 +118,3 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	//printf("Content : [%s]\n", ethernet->ether_shost);
 	printf("Ether_type : [%i]\n", ethernet->ether_type);
 };
-void parseCommand(int argc, char *argv[], char* interface2, char* fichier, char* filtre, int verbosite){
-	printf("Parsing\n");
-};
-int main(int argc, char *argv[])
-{
-	// -i <interface> : interface pour l’analyse live
-	// -o <fichier> : fichier d’entrée pour l’analyse offline
-	// -f <filtre> : filtre BPF (optionnel)
-	// -v <1..3> : niveau de verbosité (1=très concis ; 2=synthétique ; 3=complet)
-	char *interface2;
-	char *fichier;
-	char *filtre;
-	int verbosite;
-
-	while ((c = getopt (argc, argv, "iofv:")) != -1)
-         switch (c)
-           {
-           case 'i':
-             interface2 = optarg;
-             break;
-           case 'o':
-             bflag = 1;
-             break;
-           case 'f':
-             cvalue = optarg;
-             break;
-           case 'v':
-             cvalue = optarg;
-             break;           
-           default:
-             printf("Arguments missing\n");
-           }
-
-	//parseCommand( argc, argv, &interface2, &fichier, &filtre, &verbosite);
-
-	char *interface, errbuf[ BUFFER_SIZE ];
-	pcap_t *handle;
-	struct pcap_pkthdr header;	/* The header that pcap gives us */
-	const u_char *packet;		/* The actual packet */
-	bpf_u_int32 mask;		/* Our netmask */
-	bpf_u_int32 net;		/* Our IP */
-
-	interface = pcap_lookupdev(errbuf);
-	if (interface == NULL) {
-		fprintf(stderr, "Couldn't find default device: %s\n", errbuf);
-		return(2);
-	}
-	printf("Device: %s\n", interface);
-
-	if (pcap_lookupnet("eth1"/*interface*/, &net, &mask, errbuf) == -1) {
-			fprintf(stderr, "Couldn't get netmask for device %s: %s\n", interface, errbuf);
-			net = 0;
-			mask = 0;
-	}
-
-	 handle = pcap_open_live("eth1"/*interface*/, BUFSIZ, 1, 1000, errbuf);
-	 if (handle == NULL) {
-		 fprintf(stderr, "Couldn't open device %s: %s\n", interface, errbuf);
-		 return(2);
-	 }
-	 printf("Waiting for packets\n");
-
-	//  if (pcap_compile(handle, &fp, filter_exp, 0, net) == -1) {
-	// 		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(handle));
-	// 		return(2);
-	// }
-	 pcap_loop(handle, 1, got_packet, NULL);
-	 // packet = pcap_next(handle, &header);
-	 // printf("Jacked a packet with length of [%d]\n", header.len);
-	 
-
-	 pcap_close(handle);
-
-	return 0;
-}

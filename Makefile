@@ -2,7 +2,6 @@ all: analyser clean
 
 CC = gcc -ggdb -Wall
 
-# Les fichiers C compiles
 C_BINS = analyser.c
 
 analyser:	$(C_BINS)
