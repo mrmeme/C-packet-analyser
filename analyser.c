@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
 	char *fichier = NULL;
 	char *filtre = NULL;
 	int verbosite = 0;
-	
+    
 	parseArgs( argc, argv, &interface, &fichier, &filtre, &verbosite);	
 
 	char errbuf[ BUFFER_SIZE ];

@@ -16,6 +16,7 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <net/if_arp.h>
+#include "bootp.h"
 
 void parseArgs(int argc, char *argv[], char** interface, char** fichier, char** filtre, int* verbosite);
 void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
