@@ -8,6 +8,14 @@
 // u_short ether_type; /* IP? ARP? RARP? etc */
 // }; 
 
+pcap_t *handle;
+
+void ctrl_c(int n){
+    printf("\nFermeture du sniffer\n");
+    pcap_close(handle);
+    exit(0);
+}
+
 int main(int argc, char *argv[])
 {
 	// -i <interface> : interface pour l’analyse live
@@ -23,7 +31,7 @@ int main(int argc, char *argv[])
 
 	char errbuf[ BUFFER_SIZE ];
     struct bpf_program fp;
-	pcap_t *handle;
+	//pcap_t *handle;
 	// struct pcap_pkthdr header;	 The header that pcap gives us 
 	// const u_char *packet;		/* The actual packet */
 	bpf_u_int32 mask;		/* Our netmask */
@@ -69,11 +77,11 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Couldn't set filter %s: %s\n", filtre, pcap_geterr(handle));
             return(2);
     }
-   pcap_loop(handle, 10, got_packet, (u_char *) &verbosite);
+    signal(SIGINT,ctrl_c);
+    pcap_loop(handle, -1, got_packet, (u_char *) &verbosite);
 	 // packet = pcap_next(handle, &header);
-	 // printf("Jacked a packet with length of [%d]\n", header.len);	 
-
-   pcap_close(handle);
+	 // printf("Jacked a packet with length of [%d]\n", header.len);
+    pcap_close(handle);
 
    return 0;
 }
@@ -108,6 +116,7 @@ printf("End of parsing\n");
 
 void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet){
     printf("********************Paquet recu [%d]********************\n", header->len);
+    //printAscii(packet, header->len);
     struct ether_header *ethernet;
     //int size_ethernet = sizeof(struct ether_header);
     ethernet = (struct ether_header*)(packet);
@@ -132,7 +141,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
             printUdp(udp, *verbosite ); 
             break;
             default:
-            printf("Protocol not handled\n");
+            printf("Protocol not handled : %d\n",ip->protocol);
             break;
         }
         break;
@@ -167,6 +176,21 @@ void printDump(u_char *packet, int length){
         if(i%16==15)
             printf("%02x\n", (packet[i]));
         printf("%02x ", (packet[i]));
+    }
+    printf("\n");
+
+};
+
+void printAscii(u_char *packet, int length){
+    int i;
+    for(i=0;i< length;i++){
+        if(isprint(packet[i])){        
+        printf("%c", (packet[i]));
+        }
+        else
+            printf(".");
+        if(i%64==63)
+            printf("\n");
     }
     printf("\n");
 
@@ -341,8 +365,10 @@ void printUdp(struct udphdr* udp, int verbosite){
     printf("Port destination : %u\n",ntohs(udp->dest));
     printf("Taille de l'en-tete : %d\n", ntohs(udp->len));
     printf("Checksum : %d\n", ntohs(udp->check));
-    if(verbosite>0) 
+    printAscii((u_char *) udp + sizeof(struct udphdr) , ntohs(udp->len)- sizeof(struct udphdr));
+    if(verbosite>0){ 
         printDump((u_char *) udp, ntohs(udp->len));
+    }
     // if(verbosite>0){//2
     //     printf("Numero de sequence : %u\n",ntohl(tcp->seq));
     //     printf("Numero d'acquittement : %u\n",ntohl(tcp->ack_seq));
