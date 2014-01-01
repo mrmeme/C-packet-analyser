@@ -25,5 +25,7 @@ void printIp(struct iphdr* ip, int verbosite);
 void printArp(struct arphdr* arp, int verbosite);
 void printTcp(struct tcphdr* tcp, int verbosite);
 void printUdp(struct udphdr* udp, int verbosite);
+void printBootp(struct bootp* bp, int verbosite);
 void printAscii(u_char *packet, int length);
 void printDump(u_char *packet, int length);
+void printHttp(u_char *data, int datasize, int verbosite);  
